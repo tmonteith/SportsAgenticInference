@@ -1,0 +1,15 @@
+apiVersion: v2
+name: sportsagentic-inference
+description: Helm chart for deploying the SportsAgenticInference FastAPI service (llama-server + microsoft/Phi-4-mini-instruct)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - fastapi
+  - llama-cpp
+  - llama-server
+  - phi-4-mini-instruct
+  - inference
+  - college-football
+maintainers:
+  - name: tmonteith

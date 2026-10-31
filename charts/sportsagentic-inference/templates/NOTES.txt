@@ -1,0 +1,15 @@
+SportsAgenticInference (llama-server + microsoft/Phi-4-mini-instruct) has been deployed!
+
+1. Service DNS for SportsAgenticAgent inside the cluster:
+  http://{{ include "sportsagentic-inference.fullname" . }}:{{ .Values.service.port }}/v1
+
+2. Forward the service port locally to test the OpenAI-compatible API:
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "sportsagentic-inference.fullname" . }} 8081:{{ .Values.service.port }}
+
+3. Check model and llama-server health:
+  curl -s http://localhost:8081/health
+
+4. Send a test chat completion:
+  curl -s http://localhost:8081/v1/chat/completions \
+    -H "Content-Type: application/json" \
+    -d '{"model": "local-model", "messages": [{"role": "user", "content": "Who is the head coach of Ole Miss?"}]}'

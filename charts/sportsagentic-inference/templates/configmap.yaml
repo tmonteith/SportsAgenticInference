@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sportsagentic-inference.fullname" . }}
+  labels:
+    {{- include "sportsagentic-inference.labels" . | nindent 4 }}
+data:
+  HOST: {{ .Values.config.host | quote }}
+  PORT: {{ .Values.config.port | quote }}
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  MODEL_ID: {{ .Values.config.modelId | quote }}
+  MODEL_ALIAS: {{ .Values.config.modelAlias | quote }}
+  HF_GGUF_REPO: {{ .Values.config.hfGgufRepo | quote }}
+  HF_GGUF_FILENAME: {{ .Values.config.hfGgufFilename | quote }}
+  MODEL_CACHE_DIR: {{ .Values.config.modelCacheDir | quote }}
+  AUTO_DOWNLOAD_MODEL: {{ .Values.config.autoDownloadModel | quote }}
+  LLAMA_SERVER_BIN: {{ .Values.config.llamaServerBin | quote }}
+  LLAMA_INTERNAL_HOST: {{ .Values.config.llamaInternalHost | quote }}
+  LLAMA_INTERNAL_PORT: {{ .Values.config.llamaInternalPort | quote }}
+  LLAMA_CTX_SIZE: {{ .Values.config.llamaCtxSize | quote }}
+  LLAMA_THREADS: {{ .Values.config.llamaThreads | quote }}
+  LLAMA_N_GPU_LAYERS: {{ .Values.config.llamaNGpuLayers | quote }}
+  LLAMA_STARTUP_TIMEOUT_SECONDS: {{ .Values.config.llamaStartupTimeoutSeconds | quote }}
+  LLAMA_REQUEST_TIMEOUT_SECONDS: {{ .Values.config.llamaRequestTimeoutSeconds | quote }}
+  AUTO_START_LLAMA_SERVER: {{ .Values.config.autoStartLlamaServer | quote }}

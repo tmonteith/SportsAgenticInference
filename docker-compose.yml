@@ -1,0 +1,36 @@
+services:
+  sportsagentic-inference:
+    build: .
+    image: sportsagentic-inference:latest
+    container_name: sportsagentic-inference
+    ports:
+      - "${PORT:-8081}:8081"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8081
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - MODEL_ID=${MODEL_ID:-microsoft/Phi-4-mini-instruct}
+      - MODEL_ALIAS=${MODEL_ALIAS:-local-model}
+      - HF_GGUF_REPO=${HF_GGUF_REPO:-bartowski/microsoft_Phi-4-mini-instruct-GGUF}
+      - HF_GGUF_FILENAME=${HF_GGUF_FILENAME:-microsoft_Phi-4-mini-instruct-Q4_K_M.gguf}
+      - MODEL_CACHE_DIR=/models
+      - AUTO_DOWNLOAD_MODEL=${AUTO_DOWNLOAD_MODEL:-true}
+      - HF_TOKEN=${HF_TOKEN:-}
+      - LLAMA_SERVER_BIN=/usr/local/bin/llama-server
+      - LLAMA_INTERNAL_HOST=127.0.0.1
+      - LLAMA_INTERNAL_PORT=8082
+      - LLAMA_CTX_SIZE=${LLAMA_CTX_SIZE:-4096}
+      - LLAMA_THREADS=${LLAMA_THREADS:-4}
+      - LLAMA_N_GPU_LAYERS=${LLAMA_N_GPU_LAYERS:-0}
+      - LLAMA_STARTUP_TIMEOUT_SECONDS=${LLAMA_STARTUP_TIMEOUT_SECONDS:-120.0}
+      - LLAMA_REQUEST_TIMEOUT_SECONDS=${LLAMA_REQUEST_TIMEOUT_SECONDS:-60.0}
+      - AUTO_START_LLAMA_SERVER=${AUTO_START_LLAMA_SERVER:-true}
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - model-cache:/models
+    restart: unless-stopped
+
+volumes:
+  model-cache:
