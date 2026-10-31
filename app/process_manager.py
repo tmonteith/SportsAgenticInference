@@ -111,11 +111,16 @@ class LlamaServerProcessManager:
         cmd = self.build_command(model_path)
         logger.info("Starting llama-server subprocess: %s", " ".join(cmd))
 
+        # Ensure Metal bfloat16 compilation workaround is active on macOS
+        proc_env = dict(__import__("os").environ)
+        proc_env.setdefault("GGML_METAL_BF16_DISABLE", "1")
+
         try:
             self._process = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
+                env=proc_env,
             )
         except OSError as exc:
             msg = f"Failed to spawn llama-server ('{self.llama_server_bin}'): {exc}"
