@@ -96,7 +96,7 @@ class Settings(BaseSettings):
         description="Number of GPU layers (--n-gpu-layers) offloaded by llama-server",
     )
     llama_startup_timeout_seconds: float = Field(
-        default=60.0,
+        default=300.0,
         gt=0.0,
         description="Maximum time in seconds to wait for llama-server to pass health checks on startup",
     )
