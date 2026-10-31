@@ -41,17 +41,29 @@ def test_parse_phi_special_tag_tool_calls() -> None:
     assert json.loads(calls[0]["function"]["arguments"]) == {"team": "Ole Miss", "week": 7}
 
 
-def test_parse_phi_fenced_and_raw_json_tool_calls() -> None:
-    """Verify fenced JSON and raw JSON tool invocations are extracted."""
+def parse_phi_fenced_and_raw_json_tool_calls() -> None:
+    """Verify fenced JSON, raw JSON, and Python-style function call tool invocations are extracted."""
     fenced = '```json\n{"name": "get_team_schedule", "arguments": {"team": "Alabama"}}\n```'
     calls = parse_phi_inline_tool_calls(fenced, known_tool_names=["get_team_schedule"])
     assert len(calls) == 1
     assert calls[0]["function"]["name"] == "get_team_schedule"
     assert json.loads(calls[0]["function"]["arguments"]) == {"team": "Alabama"}
 
+    # Python-style get_cfb_scores(year=2026, week=8, date="2026-10-31", team="CSU")
+    py_style = (
+        "To get the score of the CSU game from last week (Week 8), I will use get_cfb_scores.\n"
+        '```bash\nget_cfb_scores(year=2026, week=8, date="2026-10-31", team="CSU")\n```'
+    )
+    py_calls = parse_phi_inline_tool_calls(py_style, known_tool_names=["get_cfb_scores"])
+    assert len(py_calls) == 1
+    assert py_calls[0]["function"]["name"] == "get_cfb_scores"
+    args = json.loads(py_calls[0]["function"]["arguments"])
+    assert args == {"year": 2026, "week": 8, "date": "2026-10-31", "team": "CSU"}
+
     # Unknown tool name is ignored when known_tool_names is provided
     ignored = parse_phi_inline_tool_calls(fenced, known_tool_names=["get_cfb_scores"])
     assert ignored == []
+
 
 
 def test_normalize_chat_completion_payload_converts_inline_tool_call() -> None:

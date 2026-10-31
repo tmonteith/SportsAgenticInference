@@ -99,6 +99,54 @@ def normalize_tool_call_entry(
     return normalized
 
 
+def parse_python_style_tool_call(
+    content: str,
+    known_tool_names: Optional[List[str]] = None,
+) -> Optional[Dict[str, Any]]:
+    """Parse a tool call emitted as Python/bash syntax like get_cfb_scores(year=2026, team="CSU")."""
+    if not known_tool_names:
+        return None
+
+    names_pattern = "|".join(re.escape(name) for name in known_tool_names)
+    pattern = rf"\b({names_pattern})\s*\((.*?)\)"
+    match = re.search(pattern, content, flags=re.DOTALL)
+    if not match:
+        return None
+
+    func_name = match.group(1)
+    args_str = match.group(2).strip()
+
+    # Parse key=value arguments (e.g. year=2026, week=8, team="CSU", date='2026-10-31')
+    arg_matches = re.findall(
+        r'(\w+)\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s,)]+))',
+        args_str,
+    )
+    arguments: Dict[str, Any] = {}
+    for key, val_dq, val_sq, val_raw in arg_matches:
+        raw = val_dq if val_dq != "" else (val_sq if val_sq != "" else val_raw)
+        if raw == "True":
+            parsed_val: Any = True
+        elif raw == "False":
+            parsed_val = False
+        elif raw == "None":
+            parsed_val = None
+        else:
+            try:
+                parsed_val = int(raw)
+            except ValueError:
+                try:
+                    parsed_val = float(raw)
+                except ValueError:
+                    parsed_val = raw
+        arguments[key] = parsed_val
+
+    return normalize_tool_call_entry(
+        {"name": func_name, "arguments": arguments},
+        index=1,
+        known_tool_names=known_tool_names,
+    )
+
+
 def parse_phi_inline_tool_calls(
     content: str,
     known_tool_names: Optional[List[str]] = None,
@@ -109,6 +157,7 @@ def parse_phi_inline_tool_calls(
     - <|tool_call|>[...]<|/tool_call|> or <|tool|>[...]<|/tool|> tags
     - ```json ... ``` fenced blocks containing a tool call object or array
     - Raw JSON object or array matching a tool invocation schema
+    - Python/code style tool_name(key=val) function calls
     """
     if not content or not content.strip():
         return []
@@ -156,7 +205,13 @@ def parse_phi_inline_tool_calls(
         if extracted:
             return extracted
 
+    # 4. Fallback for Python/code-style function call syntax e.g. get_cfb_scores(team="CSU", week=8)
+    py_call = parse_python_style_tool_call(stripped, known_tool_names=known_tool_names)
+    if py_call is not None:
+        return [py_call]
+
     return []
+
 
 
 def normalize_chat_completion_payload(
