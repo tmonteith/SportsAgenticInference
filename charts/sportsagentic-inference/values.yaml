@@ -1,5 +1,9 @@
 replicaCount: 1
 
+# Stop the old pod first: the model volume is ReadWriteOnce and two pods won't fit in memory
+strategy:
+  type: Recreate
+
 image:
   repository: ghcr.io/tmonteith/sportsagentic-inference
   pullPolicy: IfNotPresent
