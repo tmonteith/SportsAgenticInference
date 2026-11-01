@@ -13,6 +13,7 @@ data:
   HF_GGUF_REPO: {{ .Values.config.hfGgufRepo | quote }}
   HF_GGUF_FILENAME: {{ .Values.config.hfGgufFilename | quote }}
   MODEL_CACHE_DIR: {{ .Values.config.modelCacheDir | quote }}
+  HF_HOME: {{ .Values.config.hfHome | quote }}
   AUTO_DOWNLOAD_MODEL: {{ .Values.config.autoDownloadModel | quote }}
   LLAMA_SERVER_BIN: {{ .Values.config.llamaServerBin | quote }}
   LLAMA_INTERNAL_HOST: {{ .Values.config.llamaInternalHost | quote }}

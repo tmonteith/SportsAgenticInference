@@ -20,6 +20,8 @@ config:
   hfGgufRepo: "bartowski/microsoft_Phi-4-mini-instruct-GGUF"
   hfGgufFilename: "microsoft_Phi-4-mini-instruct-Q4_K_M.gguf"
   modelCacheDir: "/models"
+  # Writable Hugging Face cache; the pod's UID has HOME=/, which is read-only
+  hfHome: "/models/.cache/huggingface"
   autoDownloadModel: "true"
   llamaServerBin: "/usr/local/bin/llama-server"
   llamaInternalHost: "127.0.0.1"
