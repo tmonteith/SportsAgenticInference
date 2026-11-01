@@ -57,7 +57,7 @@ def test_helm_chart_structure_and_values() -> None:
 
     values = yaml.safe_load((CHART_DIR / "values.yaml").read_text(encoding="utf-8"))
     assert values["fullnameOverride"] == "llama-server"
-    assert values["config"]["modelId"] == "microsoft/Phi-4-mini-instruct"
+    assert values["config"]["modelId"] == "Qwen/Qwen2.5-14B-Instruct"
     assert values["config"]["modelAlias"] == "local-model"
     assert values["service"]["port"] == 8081
 

@@ -15,10 +15,10 @@ config:
   host: "0.0.0.0"
   port: "8081"
   logLevel: "INFO"
-  modelId: "microsoft/Phi-4-mini-instruct"
+  modelId: "Qwen/Qwen2.5-14B-Instruct"
   modelAlias: "local-model"
-  hfGgufRepo: "bartowski/microsoft_Phi-4-mini-instruct-GGUF"
-  hfGgufFilename: "microsoft_Phi-4-mini-instruct-Q4_K_M.gguf"
+  hfGgufRepo: "bartowski/Qwen2.5-14B-Instruct-GGUF"
+  hfGgufFilename: "Qwen2.5-14B-Instruct-Q4_K_M.gguf"
   modelCacheDir: "/models"
   # Writable Hugging Face cache; the pod's UID has HOME=/, which is read-only
   hfHome: "/models/.cache/huggingface"
@@ -29,8 +29,8 @@ config:
   llamaCtxSize: "4096"
   llamaThreads: "4"
   llamaNGpuLayers: "0"
-  llamaStartupTimeoutSeconds: "300.0"
-  llamaRequestTimeoutSeconds: "60.0"
+  llamaStartupTimeoutSeconds: "600.0"
+  llamaRequestTimeoutSeconds: "300.0"
   autoStartLlamaServer: "true"
 
 # Optional Hugging Face token secret for model downloads
@@ -97,7 +97,7 @@ startupProbe:
   initialDelaySeconds: 10
   periodSeconds: 10
   timeoutSeconds: 5
-  failureThreshold: 60
+  failureThreshold: 120
 
 livenessProbe:
   httpGet:
@@ -119,11 +119,11 @@ readinessProbe:
 
 resources:
   requests:
-    cpu: "1000m"
-    memory: "4Gi"
+    cpu: "2000m"
+    memory: "10Gi"
   limits:
     cpu: "4000m"
-    memory: "8Gi"
+    memory: "12Gi"
 
 autoscaling:
   enabled: false
