@@ -97,6 +97,24 @@ curl -s http://localhost:8081/v1/chat/completions \
   }'
 ```
 
+Set `"stream": true` to receive OpenAI-style `chat.completion.chunk` events over `text/event-stream` as `llama-server` produces them:
+
+```bash
+curl -N http://localhost:8081/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "local-model",
+    "stream": true,
+    "messages": [{"role": "user", "content": "Who is the head coach of Ole Miss?"}]
+  }'
+```
+
+- The status code is sent after `llama-server`'s first event, so failures up to that point return the usual `502`/`503`/`504`.
+- A later failure ends the stream with an `error:` line and no `data: [DONE]`. Treat a stream with no `finish_reason` or `[DONE]` as failed.
+- Text that could be an inline tool call is held back, then sent as a `tool_calls` delta with `finish_reason: "tool_calls"`. Narration before the call is sent as normal text.
+- `LLAMA_REQUEST_TIMEOUT_SECONDS` limits the wait for the first token and each gap between chunks, not the length of the whole reply.
+- If the client disconnects, the upstream request is closed so `llama-server` stops generating.
+
 ### `GET /v1/models`
 List available model identifiers (`microsoft/Phi-4-mini-instruct` and `local-model`).
 

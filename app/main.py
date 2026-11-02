@@ -2,18 +2,21 @@
 
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
 import time
-from typing import Any, AsyncIterator, Dict, Optional
+from typing import Any, AsyncIterator, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
+from starlette.types import Receive, Scope, Send
 
 from app.config import Settings, get_settings
 from app.logging_config import get_logger, setup_logging
 from app.model_manager import ModelManager, ModelManagerError
 from app.process_manager import LlamaProcessError, LlamaServerProcessManager
 from app.proxy import (
+    ChatCompletionStream,
     InferenceProxyError,
     InferenceUpstreamTimeoutError,
     InferenceUpstreamUnavailableError,
@@ -26,6 +29,55 @@ from app.schemas import (
 )
 
 logger = get_logger("api")
+
+class ChatCompletionStreamResponse(StreamingResponse):
+    """Sends an open upstream stream as server-sent events, closing it however the response ends."""
+
+    def __init__(self, stream: ChatCompletionStream) -> None:
+        super().__init__(
+            stream,
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+        self.stream = stream
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        # Starlette can cancel the response before the body starts, so closing cannot
+        # be left to the body iterator.
+        try:
+            await super().__call__(scope, receive, send)
+        finally:
+            await self.stream.aclose()
+
+
+async def wait_for_disconnect(request: Request) -> None:
+    """Return once the client has gone.
+
+    Request.is_disconnected() cannot be used here: under BaseHTTPMiddleware, which the
+    request logging below relies on, it always reports False.
+    """
+    while (await request.receive())["type"] != "http.disconnect":
+        pass
+
+
+async def open_stream_while_connected(
+    proxy: LlamaInferenceProxy,
+    payload: ChatCompletionRequest,
+    request: Request,
+) -> Optional[ChatCompletionStream]:
+    """Open an upstream stream, returning None if the client leaves before the first token."""
+    opening = asyncio.ensure_future(proxy.open_chat_stream(payload))
+    disconnect = asyncio.ensure_future(wait_for_disconnect(request))
+    try:
+        await asyncio.wait({opening, disconnect}, return_when=asyncio.FIRST_COMPLETED)
+        if opening.done():
+            return opening.result()
+        logger.info("Client disconnected before the first token")
+        return None
+    finally:
+        opening.cancel()
+        disconnect.cancel()
+        await asyncio.wait({opening, disconnect})
 
 
 def build_components(
@@ -159,10 +211,16 @@ def create_app(custom_settings: Optional[Settings] = None) -> FastAPI:
     @application.post("/v1/chat/completions")
     async def chat_completions_endpoint(
         payload: ChatCompletionRequest,
+        request: Request,
         proxy: LlamaInferenceProxy = Depends(get_inference_proxy),
-    ) -> Dict[str, Any]:
+    ) -> Any:
         """Execute an OpenAI-compatible chat completion via llama-server."""
         try:
+            if payload.stream:
+                stream = await open_stream_while_connected(proxy, payload, request)
+                if stream is None:
+                    return Response(status_code=499)
+                return ChatCompletionStreamResponse(stream)
             return await proxy.complete_chat(payload)
         except InferenceUpstreamTimeoutError as exc:
             logger.error("Chat completion timed out: %s", exc)
