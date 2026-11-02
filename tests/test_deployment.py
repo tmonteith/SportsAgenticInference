@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 import shutil
 import subprocess
+import pytest
 import yaml
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -127,3 +128,30 @@ def test_helm_lint_and_template_rendering() -> None:
     svc_doc = next(d for d in docs if d["kind"] == "Service")
     assert svc_doc["metadata"]["name"] == "llama-server"
     assert svc_doc["spec"]["ports"][0]["port"] == 8081
+
+
+@pytest.mark.skipif(not shutil.which("helm"), reason="helm is not installed")
+def test_helm_numeric_image_tag_stays_a_string(tmp_path: Path) -> None:
+    """A numeric SHA must keep its digits, and a rounded tag must fail."""
+    helm_bin = shutil.which("helm")
+    values = tmp_path / "values.yaml"
+
+    values.write_text("image:\n  tag: 8542126\n", encoding="utf-8")
+    proc = subprocess.run(
+        [helm_bin, "template", "llama-server", str(CHART_DIR), "-f", str(values)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert 'sportsagentic-inference:8542126"' in proc.stdout
+
+    values.write_text("image:\n  tag: 1.10\n", encoding="utf-8")
+    proc = subprocess.run(
+        [helm_bin, "template", "llama-server", str(CHART_DIR), "-f", str(values)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode != 0
+    assert "image.tag" in proc.stderr

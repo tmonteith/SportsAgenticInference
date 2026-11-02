@@ -7,6 +7,7 @@ strategy:
 image:
   repository: ghcr.io/tmonteith/sportsagentic-inference
   pullPolicy: IfNotPresent
+  # Keep this quoted, and use --set-string for an all-digit git SHA
   tag: "latest"
 
 imagePullSecrets: []
