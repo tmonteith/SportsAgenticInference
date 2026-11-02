@@ -32,6 +32,8 @@ config:
   llamaInternalHost: "127.0.0.1"
   llamaInternalPort: "8082"
   llamaCtxSize: "4096"
+  # One slot, so overlapping turns queue instead of sharing llamaCtxSize
+  llamaParallel: "1"
   llamaThreads: "4"
   llamaNGpuLayers: "0"
   llamaStartupTimeoutSeconds: "600.0"
