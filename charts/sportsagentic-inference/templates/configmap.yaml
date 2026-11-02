@@ -19,6 +19,8 @@ data:
   LLAMA_INTERNAL_HOST: {{ .Values.config.llamaInternalHost | quote }}
   LLAMA_INTERNAL_PORT: {{ .Values.config.llamaInternalPort | quote }}
   LLAMA_CTX_SIZE: {{ .Values.config.llamaCtxSize | quote }}
+  # Read by the llama-server binary itself, not by app/config.py
+  LLAMA_ARG_N_PARALLEL: {{ .Values.config.llamaParallel | quote }}
   LLAMA_THREADS: {{ .Values.config.llamaThreads | quote }}
   LLAMA_N_GPU_LAYERS: {{ .Values.config.llamaNGpuLayers | quote }}
   LLAMA_STARTUP_TIMEOUT_SECONDS: {{ .Values.config.llamaStartupTimeoutSeconds | quote }}
