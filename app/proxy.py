@@ -526,6 +526,7 @@ class ChatCompletionStream:
         self._known_tool_names = known_tool_names
         self._owned_client = owned_client
         self._filters: Dict[Any, InlineToolCallFilter] = {}
+        self._saw_native_tool_calls = False
         self._last_chunk: Dict[str, Any] = {}
         self._ended = False
         self._closed = False
@@ -555,7 +556,8 @@ class ChatCompletionStream:
         logger.info(
             "llama-server stream closed after %.1fms (tool_calls=%s)",
             (time.monotonic() - self._start) * 1000.0,
-            any(item.found_calls for item in self._filters.values()),
+            self._saw_native_tool_calls
+            or any(item.found_calls for item in self._filters.values()),
         )
 
     async def _upstream_lines(self) -> AsyncIterator[bytes]:
@@ -612,6 +614,7 @@ class ChatCompletionStream:
 
         delta = dict(choice.get("delta") or {})
         if delta.get("tool_calls"):
+            self._saw_native_tool_calls = True
             inline.stop_text()
 
         visible = ""
