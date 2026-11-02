@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import logging
 from pathlib import Path
 import socket
 import time
@@ -26,6 +27,7 @@ from app.proxy import (
 )
 from app.schemas import ChatCompletionRequest, ChatMessage
 
+PROXY_LOGGER = "sportsagentic.inference.proxy"
 UPSTREAM_URL = "http://upstream.test/v1/chat/completions"
 TOOL_NAMES = ["get_cfb_scores", "get_team_schedule"]
 OLE_MISS_ARGS = {"team": "Ole Miss", "week": 7}
@@ -291,8 +293,10 @@ async def test_stream_reassembles_lines_split_across_network_reads(dummy_model_d
 async def test_stream_passes_native_tool_call_deltas_through(
     dummy_model_dir: Path,
     sample_mcp_openai_tools: List[Dict[str, Any]],
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Verify tool_calls llama-server produced itself reach the client untouched."""
+    caplog.set_level(logging.INFO, logger=PROXY_LOGGER)
     native = content_chunk("")
     native["choices"][0]["delta"] = {
         "tool_calls": [
@@ -318,6 +322,18 @@ async def test_stream_passes_native_tool_call_deltas_through(
     assert chunks[1]["choices"][0]["delta"] == native["choices"][0]["delta"]
     assert chunks[2]["choices"][0]["delta"] == fragment["choices"][0]["delta"]
     assert chunks[3]["choices"][0]["finish_reason"] == "tool_calls"
+    assert "(tool_calls=True)" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_stream_logs_no_tool_calls_for_a_plain_reply(
+    dummy_model_dir: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Verify the stream-closed log line stays False when the model only sends text."""
+    caplog.set_level(logging.INFO, logger=PROXY_LOGGER)
+    await relay(dummy_model_dir, reply_bytes(["Georgia ", "won."]))
+    assert "(tool_calls=False)" in caplog.text
 
 
 async def test_stream_emits_inline_call_as_tool_calls_delta(
