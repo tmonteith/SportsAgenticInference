@@ -9,6 +9,18 @@ It exposes:
 
 ---
 
+## Architecture
+
+![SportsAgenticInference Architecture](docs/architecture.svg)
+
+The service acts as an OpenAI-compatible gateway (`:8081`) fronting an internal supervised `llama-server` process (`:8082`):
+- **FastAPI Gateway**: Serves `/health`, `/v1/models`, and `/v1/chat/completions` (supporting both synchronous JSON responses and SSE token streaming).
+- **Process Supervision** (`app/process_manager.py`): Manages the `llama-server` subprocess lifecycle (spawning with Metal/ARM/CPU flags, stdout/stderr streaming, health polling, and clean SIGTERM/SIGKILL shutdown).
+- **Model Acquisition** (`app/model_manager.py`): Ensures GGUF model artifacts (`Qwen2.5-14B-Instruct` or `microsoft/Phi-4-mini-instruct`) are present, downloading them automatically from Hugging Face Hub if missing.
+- **Inference Proxy & Normalizer** (`app/proxy.py`): Forwards requests upstream and normalizes model tool-calling outputs (special tokens, JSON fences, inline objects, and Python syntax) into standard OpenAI `tool_calls` schemas, while filtering streaming SSE chunks so text never leaks during tool calls.
+
+---
+
 ## Setup
 
 ```bash

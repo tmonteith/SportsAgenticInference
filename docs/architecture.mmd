@@ -1,0 +1,52 @@
+flowchart TD
+    subgraph Consumer["Inference Consumer"]
+        Agent["SportsAgenticAgent (LlamaServerClient)<br/>POST /v1/chat/completions (:8081)"]
+    end
+
+    subgraph Service["SportsAgenticInference Service (FastAPI)"]
+        direction TB
+        subgraph API["FastAPI Gateway (:8081)"]
+            ChatComp["POST /v1/chat/completions<br/>(Standard JSON & SSE stream)"]
+            HealthCheck["GET /health<br/>(Probes process & upstream)"]
+            ModelsEndpoint["GET /v1/models<br/>(Lists Qwen2.5 / Phi-4 / local-model)"]
+        end
+
+        subgraph Subprocess["Process Supervision (app/process_manager.py)"]
+            ProcessMgr["LlamaServerProcessManager<br/>• Spawns llama-server child process<br/>• Sets GGML_METAL_BF16_DISABLE=1<br/>• Streams stdout/stderr to logger<br/>• Readiness polling on /health<br/>• Graceful SIGTERM / SIGKILL"]
+        end
+
+        subgraph Model["Model Lifecycle (app/model_manager.py)"]
+            ModelMgr["ModelManager<br/>• Checks cache directory<br/>• Auto-downloads GGUF via huggingface_hub<br/>• Resolves requested model alias"]
+        end
+
+        subgraph Proxy["Inference Proxy & Normalizer (app/proxy.py)"]
+            LlamaProxy["LlamaInferenceProxy<br/>Routes to http://127.0.0.1:8082"]
+            ToolNormalizer["Tool-Calling Normalizer<br/>Detects & converts into OpenAI format:<br/>1. Special tokens: <|tool_call|>...<|/tool_call|><br/>2. Markdown JSON fences: ```json ... ```<br/>3. Inline JSON objects/arrays<br/>4. Python syntax: get_cfb_scores(team='CSU')"]
+            StreamFilter["InlineToolCallFilter & ChatCompletionStream<br/>• Buffers streamed chunks<br/>• Holds text that could form tool calls<br/>• Splits clean narrative prose from tool calls<br/>• Prevents premature client delta leakage"]
+        end
+
+        subgraph LlamaSubproc["llama.cpp Runtime (:8082)"]
+            LlamaServer["llama-server subprocess<br/>Flags: --ctx-size 4096 --threads 4<br/>--n-gpu-layers 99 --jinja"]
+        end
+    end
+
+    subgraph Storage["Model Weight Storage"]
+        CacheVol[("Persistent Disk Cache / PVC<br/>models/Qwen2.5-14B-Instruct-Q4_K_M.gguf<br/>(or microsoft_Phi-4-mini-instruct)")]
+        HuggingFace["Hugging Face Hub<br/>bartowski/Qwen2.5-14B-Instruct-GGUF"]
+    end
+
+    Agent --> API
+    ChatComp --> LlamaProxy
+    API --> ProcessMgr
+    ProcessMgr --> ModelMgr
+    ModelMgr -->|Ensure Model| CacheVol
+    CacheVol -.->|Download if missing| HuggingFace
+
+    ProcessMgr -->|Spawns & Monitors| LlamaServer
+    CacheVol -->|Loads Weights| LlamaServer
+
+    LlamaProxy --> ToolNormalizer
+    LlamaProxy --> StreamFilter
+    LlamaProxy -->|HTTP /v1/chat/completions| LlamaServer
+    LlamaServer -->|Raw Tokens / Events| StreamFilter
+    StreamFilter -->|Normalized SSE| ChatComp
